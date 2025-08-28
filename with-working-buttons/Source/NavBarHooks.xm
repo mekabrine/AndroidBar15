@@ -1,10 +1,14 @@
 // Source/NavBarHooks.xm
-// Home + Switcher actions; Back is behind a prefs toggle (default OFF).
-// Also respects the global "Enabled" switch in this domain.
-#import <objc/runtime.h>
+
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <objc/message.h>   // <-- Needed for objc_msgSend
 #import <CoreFoundation/CoreFoundation.h>
+
+// Silence warning for private selector -suspend
+@interface UIApplication (Private)
+- (void)suspend;
+@end
 
 static CFStringRef const kDomain = CFSTR("space.mekabrine.androidbar15");
 
