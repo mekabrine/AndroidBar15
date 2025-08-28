@@ -1,7 +1,7 @@
 // Source/NavBarHooks.xm
 // Home + Switcher actions; Back is behind a prefs toggle (default OFF).
 // Also respects the global "Enabled" switch in this domain.
-
+#import <objc/runtime.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <CoreFoundation/CoreFoundation.h>
