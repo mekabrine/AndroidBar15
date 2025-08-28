@@ -1,0 +1,10 @@
+Package: space.mekabrine.androidbar15
+Name: AndroidBar15
+Description: Android-style nav bar for rootless iOS 15 (Dopamine/ElleKit). Includes Settings page (enable/disable & height).
+Maintainer: Mekabrine <you@example.com>
+Author: Mekabrine <you@example.com>
+Section: Tweaks
+Depends: firmware (>= 15.0), ellekit (>= 1.0), preferenceloader
+Architecture: iphoneos-arm64
+Version: 1.1.0-1+debug
+Installed-Size: 192
