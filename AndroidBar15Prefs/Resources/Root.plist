@@ -2,35 +2,35 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <array>
-    <dict>
-        <key>cell</key><string>PSGroupCell</string>
-        <key>label</key><string>AndroidBar15</string>
-        <key>footerText</key><string>Enable and size the on-screen nav bar. Respring to apply.</string>
-    </dict>
+  <dict>
+    <key>cell</key><string>PSGroupCell</string>
+    <key>label</key><string>AndroidBar15</string>
+    <key>footerText</key><string>Enable and size the on-screen nav bar. Changes apply instantly; Respring if a specific app didn't update.</string>
+  </dict>
 
-    <dict>
-        <key>cell</key><string>PSSwitchCell</string>
-        <key>label</key><string>Enable</string>
-        <key>defaults</key><string>space.mekabrine.androidbar15</string>
-        <key>key</key><string>Enabled</string>
-        <key>default</key><true/>
-    </dict>
+  <dict>
+    <key>cell</key><string>PSSwitchCell</string>
+    <key>label</key><string>Enable</string>
+    <key>defaults</key><string>space.mekabrine.androidbar15</string>
+    <key>key</key><string>Enabled</string>
+    <key>default</key><true/>
+  </dict>
 
-    <dict>
-        <key>cell</key><string>PSSliderCell</string>
-        <key>label</key><string>Bar Height</string>
-        <key>showValue</key><true/>
-        <key>min</key><real>28</real>
-        <key>max</real><real>60</real>
-        <key>defaults</key><string>space.mekabrine.androidbar15</string>
-        <key>key</key><string>BarHeight</string>
-        <key>default</key><real>40</real>
-    </dict>
+  <dict>
+    <key>cell</key><string>PSSliderCell</string>
+    <key>label</key><string>Bar Height</string>
+    <key>showValue</key><true/>
+    <key>min</key><real>28</real>
+    <key>max</key><real>60</real>
+    <key>defaults</key><string>space.mekabrine.androidbar15</string>
+    <key>key</key><string>BarHeight</string>
+    <key>default</key><real>40</real>
+  </dict>
 
-    <dict>
-        <key>cell</key><string>PSButtonCell</string>
-        <key>label</key><string>Respring</string>
-        <key>action</key><string>respring:</string>
-    </dict>
+  <dict>
+    <key>cell</key><string>PSButtonCell</string>
+    <key>label</key><string>Respring</string>
+    <key>action</key><string>respring:</string>
+  </dict>
 </array>
 </plist>

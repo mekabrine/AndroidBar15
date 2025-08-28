@@ -3,60 +3,56 @@
 #import <objc/message.h>
 #import "NavBarView.h"
 
-// Let the compiler know these methods exist on SpringBoard.
-@interface SpringBoard : UIApplication
-- (void)_ab_recentsAction;
-- (void)_ab_homeAction;
-- (void)_ab_backAction;
-@end
-
 // Prefs
 static NSString * const kPrefsPath = @"/var/mobile/Library/Preferences/space.mekabrine.androidbar15.plist";
-static NSDictionary *ABPrefs(void) {
-    NSDictionary *d = [NSDictionary dictionaryWithContentsOfFile:kPrefsPath];
-    return d ?: @{};
-}
-static BOOL PrefEnabled(void) {
-    NSNumber *n = ABPrefs()[@"Enabled"];
-    return n ? n.boolValue : YES;
-}
-static CGFloat PrefBarHeight(void) {
-    NSNumber *n = ABPrefs()[@"BarHeight"];
-    return n ? n.floatValue : 40.0f;
-}
+static CFStringRef const kReloadNote = CFSTR("space.mekabrine.androidbar15/ReloadPrefs");
+static NSDictionary *ABPrefs(void) { return [NSDictionary dictionaryWithContentsOfFile:kPrefsPath] ?: @{}; }
+static BOOL ABEnabled(void) { NSNumber *n = ABPrefs()[@"Enabled"]; return n ? n.boolValue : YES; }
+static CGFloat ABHeight(void){ NSNumber *n = ABPrefs()[@"BarHeight"]; return n ? n.floatValue : 40.f; }
 
-// Switcher service (for Recents/Home-ish behavior)
+// Switcher/Home private
 @interface SBSwitcherSystemService : NSObject
 + (id)sharedInstance;
 - (void)activateSwitcher;
 - (void)activateSwitcherNoninteractively;
 @end
 
+// SpringBoard category we call
+@interface SpringBoard : UIApplication
+- (void)_ab_recentsAction;
+- (void)_ab_homeAction;
+- (void)_ab_backAction;
+@end
+
 static UIWindow *abWindow;
 static NavBarView *navView;
 
-static void ABUpdateUI(void) {
+static void ABLayout(void) {
     if (!abWindow) return;
-    BOOL on = PrefEnabled();
-    CGFloat h = fmaxf(28.f, fminf(60.f, PrefBarHeight()));
+    BOOL on = ABEnabled();
+    CGFloat h = fmaxf(28.f, fminf(60.f, ABHeight()));
     CGRect screen = [UIScreen mainScreen].bounds;
     abWindow.hidden = !on;
-    abWindow.frame = CGRectMake(0, CGRectGetHeight(screen)-h, CGRectGetWidth(screen), h);
-    navView.frame = abWindow.bounds;
+    abWindow.frame  = CGRectMake(0, CGRectGetHeight(screen)-h, CGRectGetWidth(screen), h);
+    navView.frame   = abWindow.bounds;
     [navView setNeedsLayout];
 }
 
+static void ABPostDarwin(CFStringRef name) {
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), name, NULL, NULL, true);
+}
+
 %hook SpringBoard
-- (void)applicationDidFinishLaunching:(id)application {
+- (void)applicationDidFinishLaunching:(id)app {
     %orig;
 
-    CGRect screen = [UIScreen mainScreen].bounds;
-    CGFloat h = fmaxf(28.f, fminf(60.f, PrefBarHeight()));
-    abWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, CGRectGetHeight(screen)-h, CGRectGetWidth(screen), h)];
+    CGRect s = [UIScreen mainScreen].bounds;
+    CGFloat h = fmaxf(28.f, fminf(60.f, ABHeight()));
+    abWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, CGRectGetHeight(s)-h, CGRectGetWidth(s), h)];
     abWindow.windowLevel = UIWindowLevelStatusBar + 2000;
     abWindow.backgroundColor = UIColor.clearColor;
     abWindow.userInteractionEnabled = YES;
-    abWindow.hidden = !PrefEnabled();
+    abWindow.hidden = !ABEnabled();
 
     navView = [[NavBarView alloc] initWithFrame:abWindow.bounds];
     [abWindow addSubview:navView];
@@ -66,11 +62,13 @@ static void ABUpdateUI(void) {
     navView.onHome    = ^{ [(SpringBoard *)weakSelf _ab_homeAction];    };
     navView.onRecents = ^{ [(SpringBoard *)weakSelf _ab_recentsAction]; };
 
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIDeviceOrientationDidChangeNotification
-                                                      object:nil queue:[NSOperationQueue mainQueue]
-                                                  usingBlock:^(__unused NSNotification *n){ ABUpdateUI(); }];
+    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, ^(CFNotificationCenterRef, void *observer, CFStringRef name, const void *, CFDictionaryRef){
+        dispatch_async(dispatch_get_main_queue(), ^{ ABLayout(); });
+    }, kReloadNote, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
-    ABUpdateUI();
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIDeviceOrientationDidChangeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(__unused NSNotification *n){ ABLayout(); }];
+
+    ABLayout();
 }
 %new
 - (void)_ab_recentsAction {
@@ -81,6 +79,7 @@ static void ABUpdateUI(void) {
             ((void (*)(id, SEL))objc_msgSend)(s, @selector(activateSwitcher));
         }
     }
+    ABPostDarwin(CFSTR("space.mekabrine.androidbar15/RECENTS"));
 }
 %new
 - (void)_ab_homeAction {
@@ -94,9 +93,10 @@ static void ABUpdateUI(void) {
             ((void (*)(id, SEL))objc_msgSend)(s, @selector(activateSwitcher));
         }
     }
+    ABPostDarwin(CFSTR("space.mekabrine.androidbar15/HOME"));
 }
 %new
 - (void)_ab_backAction {
-    [self _ab_recentsAction];
+    ABPostDarwin(CFSTR("space.mekabrine.androidbar15/BACK"));
 }
 %end
