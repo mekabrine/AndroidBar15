@@ -2,16 +2,42 @@
 #import <WebKit/WebKit.h>
 #import <objc/runtime.h>
 
-// Prefs
+// ====== Prefs ======
 static NSString * const kPrefsPath = @"/var/mobile/Library/Preferences/space.mekabrine.androidbar15.plist";
 static CFStringRef const kReloadNote = CFSTR("space.mekabrine.androidbar15/ReloadPrefs");
 static NSDictionary *ABPrefs(void) { return [NSDictionary dictionaryWithContentsOfFile:kPrefsPath] ?: @{}; }
 static BOOL ABEnabled(void) { NSNumber *n = ABPrefs()[@"Enabled"]; return n ? n.boolValue : YES; }
 static CGFloat ABHeight(void){ NSNumber *n = ABPrefs()[@"BarHeight"]; return n ? n.floatValue : 40.f; }
 
+// ====== Window helper (no deprecated APIs) ======
+static UIWindow *ABActiveWindow(void) {
+    // Prefer the key window from the foreground-active scene
+    NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+    for (UIScene *scene in scenes) {
+        if (scene.activationState == UISceneActivationStateForegroundActive &&
+            [scene isKindOfClass:[UIWindowScene class]]) {
+
+            UIWindowScene *ws = (UIWindowScene *)scene;
+            for (UIWindow *w in ws.windows) {
+                if (w.isKeyWindow) return w;
+            }
+            if (ws.windows.count) return ws.windows.firstObject;
+        }
+    }
+    // Fallbacks (should rarely be hit)
+    for (UIScene *scene in scenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *ws = (UIWindowScene *)scene;
+            if (ws.windows.count) return ws.windows.firstObject;
+        }
+    }
+    return nil;
+}
+
+// ====== Layout helpers ======
 static void ABApplyLayoutToWindow(UIWindow *w) {
-    if (!w) return;
-    if (!w.rootViewController) return;
+    if (!w || !w.rootViewController) return;
+
     if (!ABEnabled()) {
         w.rootViewController.additionalSafeAreaInsets = UIEdgeInsetsZero;
         w.rootViewController.view.transform = CGAffineTransformIdentity;
@@ -34,8 +60,9 @@ static BOOL ABWebViewGoBack(UIView *view) {
 }
 
 static BOOL ABSmartBack(void) {
-    UIWindow *key = UIApplication.sharedApplication.keyWindow ?: UIApplication.sharedApplication.windows.firstObject;
+    UIWindow *key = ABActiveWindow();
     if (!key) return NO;
+
     UIViewController *root = key.rootViewController;
     if (!root) return NO;
 
@@ -58,19 +85,26 @@ static BOOL ABSmartBack(void) {
     return NO;
 }
 
+// ====== Darwin notifications from SB ======
 static void ABNote(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+    (void)center; (void)observer; (void)object; (void)userInfo;
     NSString *n = (__bridge NSString *)name;
     if ([n hasSuffix:@"/BACK"]) {
         ABSmartBack();
     } else if ([n hasSuffix:@"/ReloadPrefs"]) {
-        dispatch_async(dispatch_get_main_queue(), ^{ ABApplyLayoutToWindow(UIApplication.sharedApplication.keyWindow); });
+        dispatch_async(dispatch_get_main_queue(), ^{
+            ABApplyLayoutToWindow(ABActiveWindow());
+        });
     }
 }
 
+// ====== Hooks ======
 %hook UIApplication
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     BOOL r = %orig(application, launchOptions);
-    dispatch_async(dispatch_get_main_queue(), ^{ ABApplyLayoutToWindow(UIApplication.sharedApplication.keyWindow); });
+    dispatch_async(dispatch_get_main_queue(), ^{
+        ABApplyLayoutToWindow(ABActiveWindow());
+    });
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, ABNote,
         CFSTR("space.mekabrine.androidbar15/BACK"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, ABNote,
@@ -82,6 +116,8 @@ static void ABNote(CFNotificationCenterRef center, void *observer, CFStringRef n
 %hook UIScene
 - (void)sceneDidActivate:(id)scene {
     %orig(scene);
-    dispatch_async(dispatch_get_main_queue(), ^{ ABApplyLayoutToWindow(UIApplication.sharedApplication.keyWindow); });
+    dispatch_async(dispatch_get_main_queue(), ^{
+        ABApplyLayoutToWindow(ABActiveWindow());
+    });
 }
 %end
