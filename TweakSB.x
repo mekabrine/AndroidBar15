@@ -3,21 +3,21 @@
 #import <objc/message.h>
 #import "NavBarView.h"
 
-// Prefs
+// ====== Prefs ======
 static NSString * const kPrefsPath = @"/var/mobile/Library/Preferences/space.mekabrine.androidbar15.plist";
 static CFStringRef const kReloadNote = CFSTR("space.mekabrine.androidbar15/ReloadPrefs");
 static NSDictionary *ABPrefs(void) { return [NSDictionary dictionaryWithContentsOfFile:kPrefsPath] ?: @{}; }
 static BOOL ABEnabled(void) { NSNumber *n = ABPrefs()[@"Enabled"]; return n ? n.boolValue : YES; }
 static CGFloat ABHeight(void){ NSNumber *n = ABPrefs()[@"BarHeight"]; return n ? n.floatValue : 40.f; }
 
-// Switcher/Home private
+// ====== Switcher/Home private ======
 @interface SBSwitcherSystemService : NSObject
 + (id)sharedInstance;
 - (void)activateSwitcher;
 - (void)activateSwitcherNoninteractively;
 @end
 
-// SpringBoard category we call
+// Declare the SpringBoard category we call
 @interface SpringBoard : UIApplication
 - (void)_ab_recentsAction;
 - (void)_ab_homeAction;
@@ -39,7 +39,19 @@ static void ABLayout(void) {
 }
 
 static void ABPostDarwin(CFStringRef name) {
-    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), name, NULL, NULL, true);
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+                                         name, NULL, NULL, true);
+}
+
+// NEW: C callback (fixes “CFNotificationCallback incompatible / C2x” build error)
+static void ABReloadCallback(CFNotificationCenterRef center,
+                             void *observer,
+                             CFStringRef name,
+                             const void *object,
+                             CFDictionaryRef userInfo)
+{
+    (void)center; (void)observer; (void)name; (void)object; (void)userInfo;
+    dispatch_async(dispatch_get_main_queue(), ^{ ABLayout(); });
 }
 
 %hook SpringBoard
@@ -62,11 +74,14 @@ static void ABPostDarwin(CFStringRef name) {
     navView.onHome    = ^{ [(SpringBoard *)weakSelf _ab_homeAction];    };
     navView.onRecents = ^{ [(SpringBoard *)weakSelf _ab_recentsAction]; };
 
-    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, ^(CFNotificationCenterRef, void *observer, CFStringRef name, const void *, CFDictionaryRef){
-        dispatch_async(dispatch_get_main_queue(), ^{ ABLayout(); });
-    }, kReloadNote, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+    // Use C callback instead of a block
+    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(),
+        NULL, ABReloadCallback, kReloadNote, NULL,
+        CFNotificationSuspensionBehaviorDeliverImmediately);
 
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIDeviceOrientationDidChangeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(__unused NSNotification *n){ ABLayout(); }];
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIDeviceOrientationDidChangeNotification
+                                                      object:nil queue:[NSOperationQueue mainQueue]
+                                                  usingBlock:^(__unused NSNotification *n){ ABLayout(); }];
 
     ABLayout();
 }
@@ -97,6 +112,7 @@ static void ABPostDarwin(CFStringRef name) {
 }
 %new
 - (void)_ab_backAction {
+    // Tell the foreground app to go “back”
     ABPostDarwin(CFSTR("space.mekabrine.androidbar15/BACK"));
 }
 %end
