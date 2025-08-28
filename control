@@ -1,9 +1,0 @@
-Package: space.mekabrine.androidbar15
-Name: AndroidBar15
-Version: 1.2.0
-Architecture: iphoneos-arm
-Description: Android-style nav bar for rootless iOS 15. Buttons: Back, Home, Recents. Settings page (Enable + Height). App-side adjusts safe area and slightly scales/raises content.
-Maintainer: Mekabrine <you@example.com>
-Author: Mekabrine <you@example.com>
-Section: Tweaks
-Depends: firmware (>= 15.0), ellekit (>= 1.0), preferenceloader
