@@ -9,6 +9,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
+      - name: Fix maintainer script perms
+        run: chmod 0755 layout/DEBIAN/postinst
       - name: Set up Theos
         uses: Randomblock1/theos-action@v1
       - name: Build package
