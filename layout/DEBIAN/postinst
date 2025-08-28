@@ -1,8 +1,0 @@
-#!/bin/sh
-uicache -a
-if command -v sbreload >/dev/null 2>&1; then
-  sbreload
-else
-  killall -9 SpringBoard || true
-fi
-exit 0
