@@ -3,13 +3,27 @@
 #import <objc/message.h>
 #import "NavBarView.h"
 
+// Let the compiler know these methods exist on SpringBoard.
+@interface SpringBoard : UIApplication
+- (void)_ab_recentsAction;
+- (void)_ab_homeAction;
+- (void)_ab_backAction;
+@end
+
 // Prefs
 static NSString * const kPrefsPath = @"/var/mobile/Library/Preferences/space.mekabrine.androidbar15.plist";
-static NSDictionary *ABPrefs() {
-    return [NSDictionary dictionaryWithContentsOfFile:kPrefsPath] ?: @{};
+static NSDictionary *ABPrefs(void) {
+    NSDictionary *d = [NSDictionary dictionaryWithContentsOfFile:kPrefsPath];
+    return d ?: @{};
 }
-static BOOL PrefEnabled(void) { return [ABPrefs()[@"Enabled"] ?: @YES boolValue]; }
-static CGFloat PrefBarHeight(void) { return [[ABPrefs()[@"BarHeight"] ?: @40.0] floatValue]; }
+static BOOL PrefEnabled(void) {
+    NSNumber *n = ABPrefs()[@"Enabled"];
+    return n ? n.boolValue : YES;
+}
+static CGFloat PrefBarHeight(void) {
+    NSNumber *n = ABPrefs()[@"BarHeight"];
+    return n ? n.floatValue : 40.0f;
+}
 
 // Switcher service (for Recents/Home-ish behavior)
 @interface SBSwitcherSystemService : NSObject
@@ -24,7 +38,7 @@ static NavBarView *navView;
 static void ABUpdateUI(void) {
     if (!abWindow) return;
     BOOL on = PrefEnabled();
-    CGFloat h = MAX(28.f, MIN(60.f, PrefBarHeight()));
+    CGFloat h = fmaxf(28.f, fminf(60.f, PrefBarHeight()));
     CGRect screen = [UIScreen mainScreen].bounds;
     abWindow.hidden = !on;
     abWindow.frame = CGRectMake(0, CGRectGetHeight(screen)-h, CGRectGetWidth(screen), h);
@@ -36,9 +50,8 @@ static void ABUpdateUI(void) {
 - (void)applicationDidFinishLaunching:(id)application {
     %orig;
 
-    // Create window & bar
     CGRect screen = [UIScreen mainScreen].bounds;
-    CGFloat h = MAX(28.f, MIN(60.f, PrefBarHeight()));
+    CGFloat h = fmaxf(28.f, fminf(60.f, PrefBarHeight()));
     abWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, CGRectGetHeight(screen)-h, CGRectGetWidth(screen), h)];
     abWindow.windowLevel = UIWindowLevelStatusBar + 2000;
     abWindow.backgroundColor = UIColor.clearColor;
@@ -48,15 +61,14 @@ static void ABUpdateUI(void) {
     navView = [[NavBarView alloc] initWithFrame:abWindow.bounds];
     [abWindow addSubview:navView];
 
-    __weak typeof(self) weakSelf = self;
-    navView.onBack = ^{ [weakSelf _ab_backAction]; };
-    navView.onHome = ^{ [weakSelf _ab_homeAction]; };
-    navView.onRecents = ^{ [weakSelf _ab_recentsAction]; };
+    __weak SpringBoard *weakSelf = (SpringBoard *)self;
+    navView.onBack    = ^{ [(SpringBoard *)weakSelf _ab_backAction];    };
+    navView.onHome    = ^{ [(SpringBoard *)weakSelf _ab_homeAction];    };
+    navView.onRecents = ^{ [(SpringBoard *)weakSelf _ab_recentsAction]; };
 
-    // Orientation/size changes
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIDeviceOrientationDidChangeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(__unused NSNotification *n){
-        ABUpdateUI();
-    }];
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIDeviceOrientationDidChangeNotification
+                                                      object:nil queue:[NSOperationQueue mainQueue]
+                                                  usingBlock:^(__unused NSNotification *n){ ABUpdateUI(); }];
 
     ABUpdateUI();
 }
