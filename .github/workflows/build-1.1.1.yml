@@ -15,17 +15,17 @@ jobs:
 
       - name: Fix maintainer script perms
         run: |
-          chmod 0755 with-working-buttons/layout/DEBIAN/postinst || true
+          chmod 0755 v1.1.1/layout/DEBIAN/postinst || true
 
       - name: Set up Theos
         uses: Randomblock1/theos-action@v1
 
       - name: Build package
         run: |
-          make -C with-working-buttons package
+          make -C v1.1.1 package
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4
         with:
           name: debs
-          path: with-working-buttons/packages/*.deb
+          path: v1.1.1/packages/*.deb
