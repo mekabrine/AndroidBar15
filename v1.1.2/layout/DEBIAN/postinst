@@ -1,4 +1,0 @@
-#!/bin/sh
-echo "Respringing..."
-killall -9 SpringBoard || true
-exit 0
