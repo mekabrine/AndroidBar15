@@ -1,6 +1,6 @@
 Package: space.mekabrine.androidbar15
 Name: AndroidBar 15
-Version: 1.1.0-3
+Version: 1.1.2
 Architecture: iphoneos-arm64
 Depends: mobilesubstrate, preferenceloader
 Section: Tweaks
