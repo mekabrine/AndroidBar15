@@ -1,0 +1,7 @@
+{
+    Filter = {
+        Bundles = ("com.apple.springboard");
+    };
+    # Make sure tweak loads early for the UI
+    EarlyLoad = 1;
+}
