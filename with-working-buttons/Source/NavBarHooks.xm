@@ -1,20 +1,24 @@
 // Source/NavBarHooks.xm
-// Home + Switcher actions; Back behind a prefs toggle (default OFF).
-// Respects global "Enabled" (space.mekabrine.androidbar15).
+// Works in ANY process hosting the UI. App processes post Darwin notifications;
+// SpringBoard receives them and performs the action.
+// Per-button toggles in prefs: Back(off), Home(on), Switcher(on). Global Enabled on.
 
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-#import <objc/message.h>   // for objc_msgSend
+#import <objc/message.h>
 #import <CoreFoundation/CoreFoundation.h>
+#import <notify.h>
 
-// Declare private selector so clang is happy on modern SDKs.
 @interface UIApplication (Private)
 - (void)suspend;
 @end
 
 static CFStringRef const kDomain = CFSTR("space.mekabrine.androidbar15");
 
-// ---------- Pref helpers
+// Darwin notification names
+static const char *kABHomeNote     = "space.mekabrine.androidbar15.home";
+static const char *kABSwitchNote   = "space.mekabrine.androidbar15.switcher";
+static const char *kABBackNote     = "space.mekabrine.androidbar15.back";
 
 static BOOL ABPrefBool(CFStringRef key, BOOL fallback) {
     Boolean exists = false;
@@ -22,12 +26,17 @@ static BOOL ABPrefBool(CFStringRef key, BOOL fallback) {
     return exists ? (BOOL)val : fallback;
 }
 
-static BOOL ABGloballyEnabled(void)   { return ABPrefBool(CFSTR("Enabled"), YES); }
-static BOOL ABBackEnabled(void)       { return ABPrefBool(CFSTR("BackEnabled"), NO); }   // default OFF
-static BOOL ABHomeEnabled(void)       { return ABPrefBool(CFSTR("HomeEnabled"), YES); }
-static BOOL ABSwitcherEnabled(void)   { return ABPrefBool(CFSTR("SwitcherEnabled"), YES); }
+static BOOL ABGloballyEnabled(void) { return ABPrefBool(CFSTR("Enabled"), YES); }
+static BOOL ABBackEnabled(void)     { return ABPrefBool(CFSTR("BackEnabled"), NO); }
+static BOOL ABHomeEnabled(void)     { return ABPrefBool(CFSTR("HomeEnabled"), YES); }
+static BOOL ABSwitchEnabled(void)   { return ABPrefBool(CFSTR("SwitcherEnabled"), YES); }
 
-// ---------- SB helpers
+static BOOL ABIsSpringBoard(void) {
+    NSString *bid = [NSBundle mainBundle].bundleIdentifier ?: @"";
+    return [bid isEqualToString:@"com.apple.springboard"];
+}
+
+// ---------- SpringBoard-side handlers
 
 static id ABSharedInstance(Class cls) {
     if (!cls) return nil;
@@ -38,24 +47,7 @@ static id ABSharedInstance(Class cls) {
     return nil;
 }
 
-// ---------- Actions
-
-static void ABBackOnePage(void) {
-    if (!ABGloballyEnabled() || !ABBackEnabled()) return;
-
-    // Conservative: call a system "back" handler only if present.
-    Class SBUIController = objc_getClass("SBUIController");
-    id ctrl = ABSharedInstance(SBUIController);
-    SEL backSel = NSSelectorFromString(@"handleBackButtonAction");
-    if (ctrl && [ctrl respondsToSelector:backSel]) {
-        ((void(*)(id, SEL))objc_msgSend)(ctrl, backSel);
-    }
-    // else: no-op (avoids crashes on builds that lack it)
-}
-
-static void ABGoHome(void) {
-    if (!ABGloballyEnabled() || !ABHomeEnabled()) return;
-
+static void AB_SB_PerformHome(void) {
     Class SBUIController = objc_getClass("SBUIController");
     id ctrl = ABSharedInstance(SBUIController);
     SEL homeSel = NSSelectorFromString(@"handleHomeButtonSinglePressUp");
@@ -63,58 +55,119 @@ static void ABGoHome(void) {
         ((void(*)(id, SEL))objc_msgSend)(ctrl, homeSel);
         return;
     }
-
-    // Fallback when built against newer SDKs:
     if ([[UIApplication sharedApplication] respondsToSelector:@selector(suspend)]) {
         [[UIApplication sharedApplication] suspend];
     }
 }
 
-static void ABOpenSwitcher(void) {
-    if (!ABGloballyEnabled() || !ABSwitcherEnabled()) return;
-
+static void AB_SB_PerformSwitcher(void) {
     Class SBMainSwitcherViewController = objc_getClass("SBMainSwitcherViewController");
     id sw = ABSharedInstance(SBMainSwitcherViewController);
-
-    SEL noninteractive = NSSelectorFromString(@"activateSwitcherNoninteractively");
-    if (sw && [sw respondsToSelector:noninteractive]) {
-        ((void(*)(id, SEL))objc_msgSend)(sw, noninteractive);
+    SEL nonint = NSSelectorFromString(@"activateSwitcherNoninteractively");
+    if (sw && [sw respondsToSelector:nonint]) {
+        ((void(*)(id, SEL))objc_msgSend)(sw, nonint);
         return;
     }
-
-    SEL animatedSel = NSSelectorFromString(@"activateSwitcherAnimated:");
-    if (sw && [sw respondsToSelector:animatedSel]) {
-        ((void(*)(id, SEL, BOOL))objc_msgSend)(sw, animatedSel, YES);
+    SEL anim = NSSelectorFromString(@"activateSwitcherAnimated:");
+    if (sw && [sw respondsToSelector:anim]) {
+        ((void(*)(id, SEL, BOOL))objc_msgSend)(sw, anim, YES);
         return;
     }
-
-    // Last-chance fallback
     Class SBUIController = objc_getClass("SBUIController");
     id ctrl = ABSharedInstance(SBUIController);
-    SEL showSwitcher = NSSelectorFromString(@"activateApplicationSwitcher");
-    if (ctrl && [ctrl respondsToSelector:showSwitcher]) {
-        ((void(*)(id, SEL))objc_msgSend)(ctrl, showSwitcher);
-        return;
+    SEL show = NSSelectorFromString(@"activateApplicationSwitcher");
+    if (ctrl && [ctrl respondsToSelector:show]) {
+        ((void(*)(id, SEL))objc_msgSend)(ctrl, show);
     }
 }
 
-// ---------- Hook your navbar view (UI untouched)
+static void AB_SB_PerformBack(void) {
+    Class SBUIController = objc_getClass("SBUIController");
+    id ctrl = ABSharedInstance(SBUIController);
+    SEL backSel = NSSelectorFromString(@"handleBackButtonAction");
+    if (ctrl && [ctrl respondsToSelector:backSel]) {
+        ((void(*)(id, SEL))objc_msgSend)(ctrl, backSel);
+    }
+}
+
+// ---------- Darwin notify bridge
+
+static void ABPost(const char *name) {
+    uint32_t t;
+    notify_post(name); (void)t;
+}
+
+static void ABRegisterSpringBoardObservers(void) {
+    CFNotificationCenterRef nc = CFNotificationCenterGetDarwinNotifyCenter();
+    if (!nc) return;
+
+    CFNotificationCenterAddObserver(nc, NULL, ^(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+        if (!ABGloballyEnabled()) return;
+
+        if (CFStringCompare(name, CFSTR("space.mekabrine.androidbar15.home"), 0) == kCFCompareEqualTo) {
+            if (ABHomeEnabled()) AB_SB_PerformHome();
+        } else if (CFStringCompare(name, CFSTR("space.mekabrine.androidbar15.switcher"), 0) == kCFCompareEqualTo) {
+            if (ABSwitchEnabled()) AB_SB_PerformSwitcher();
+        } else if (CFStringCompare(name, CFSTR("space.mekabrine.androidbar15.back"), 0) == kCFCompareEqualTo) {
+            if (ABBackEnabled()) AB_SB_PerformBack();
+        }
+    }, CFSTR("space.mekabrine.androidbar15.home"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+
+    CFNotificationCenterAddObserver(nc, NULL, ^(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+        if (!ABGloballyEnabled()) return;
+        if (ABSwitchEnabled()) AB_SB_PerformSwitcher();
+    }, CFSTR("space.mekabrine.androidbar15.switcher"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+
+    CFNotificationCenterAddObserver(nc, NULL, ^(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+        if (!ABGloballyEnabled()) return;
+        if (ABBackEnabled()) AB_SB_PerformBack();
+    }, CFSTR("space.mekabrine.androidbar15.back"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+}
+
+// ---------- UI hooks
 
 %hook NavBarView
 
 - (void)tBack {
-    ABBackOnePage();   // guarded; default OFF
+    if (!ABGloballyEnabled()) { %orig; return; }
+    if (ABIsSpringBoard()) {
+        if (ABBackEnabled()) AB_SB_PerformBack();
+    } else {
+        // From apps → tell SpringBoard (guarded by prefs there)
+        ABPost(kABBackNote);
+    }
     %orig;
 }
 
 - (void)tHome {
-    ABGoHome();
+    if (!ABGloballyEnabled() || !ABHomeEnabled()) { %orig; return; }
+    if (ABIsSpringBoard()) {
+        AB_SB_PerformHome();
+    } else {
+        // Local fallback still takes you Home instantly; also ping SB.
+        if ([[UIApplication sharedApplication] respondsToSelector:@selector(suspend)]) {
+            [[UIApplication sharedApplication] suspend];
+        }
+        ABPost(kABHomeNote);
+    }
     %orig;
 }
 
 - (void)tRecents {
-    ABOpenSwitcher();
+    if (!ABGloballyEnabled() || !ABSwitchEnabled()) { %orig; return; }
+    if (ABIsSpringBoard()) {
+        AB_SB_PerformSwitcher();
+    } else {
+        ABPost(kABSwitchNote);
+    }
     %orig;
 }
 
 %end
+
+// Register observers only inside SpringBoard
+%ctor {
+    if (ABIsSpringBoard()) {
+        ABRegisterSpringBoardObservers();
+    }
+}
