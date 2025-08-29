@@ -9,10 +9,7 @@ AndroidBar15_FILES = Tweak.x NavBarView.m
 AndroidBar15_CFLAGS = -fobjc-arc -Wno-error=deprecated-declarations
 AndroidBar15_FRAMEWORKS = UIKit QuartzCore
 
-SUBPROJECTS += AndroidBar15Prefs
-
 include $(THEOS_MAKE_PATH)/tweak.mk
-include $(THEOS_MAKE_PATH)/aggregate.mk
 
 after-install::
 	install.exec "uicache -a"

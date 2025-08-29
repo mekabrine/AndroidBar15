@@ -17,13 +17,15 @@
         _blur.alpha = 0.90;
         [self addSubview:_blur];
 
-        _back    = [self pill:@"\u25C1"]; // ◁
-        _home    = [self pill:@"\u25CF"]; // ●
-        _recents = [self pill:@"\u25A1"]; // □
+        _back    = [self pill:@"\u25C1"]; // ◁ (placeholder, no action)
+        _home    = [self pill:@"\u25CF"]; // ● (HOME)
+        _recents = [self pill:@"\u25A1"]; // □ (placeholder, no action)
 
-        // In the UI-only version, taps don't call any actions:
-        [_back    addTarget:self action:@selector(noop) forControlEvents:UIControlEventTouchUpInside];
-        [_home    addTarget:self action:@selector(noop) forControlEvents:UIControlEventTouchUpInside];
+        // Wire only HOME
+        [_home addTarget:self action:@selector(tapHome) forControlEvents:UIControlEventTouchUpInside];
+
+        // Placeholders do nothing
+        [_back addTarget:self action:@selector(noop) forControlEvents:UIControlEventTouchUpInside];
         [_recents addTarget:self action:@selector(noop) forControlEvents:UIControlEventTouchUpInside];
 
         [self addSubview:_back];
@@ -59,6 +61,7 @@
     _recents.frame = CGRectMake(spacing*3 + btnW*2, y, btnW, btnH);
 }
 
+- (void)tapHome { if (self.onHome) self.onHome(); }
 - (void)noop {}
 
 @end
