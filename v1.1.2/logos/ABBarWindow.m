@@ -1,10 +1,13 @@
+// logos/ABBarWindow.m
+
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <notify.h>
 
+// Bottom bar height: 48pt + device bottom safe-area inset.
 static CGFloat ABBarHeight(void) {
-    CGFloat inset = 34.0; // sensible default (iPhone X family)
+    CGFloat inset = 34.0; // default (iPhone X family)
     if (@available(iOS 13.0, *)) {
         for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
             if (![scene isKindOfClass:[UIWindowScene class]]) continue;
@@ -14,8 +17,8 @@ static CGFloat ABBarHeight(void) {
             }
         }
     } else {
-        UIWindow *w = [UIApplication sharedApplication].keyWindow;
-        inset = w ? w.safeAreaInsets.bottom : inset;
+        // iOS 12 fallback: assume iPhone X-style inset
+        inset = 34.0;
     }
     return 48.0 + inset;
 }
@@ -23,6 +26,7 @@ static CGFloat ABBarHeight(void) {
 @interface ABButton : UIControl
 @property(nonatomic, strong) UIImageView *iv;
 @end
+
 @implementation ABButton
 - (instancetype)initWithImage:(UIImage *)img {
     if ((self = [super initWithFrame:CGRectZero])) {
@@ -61,7 +65,8 @@ static CGFloat ABBarHeight(void) {
         self.backgroundColor = UIColor.clearColor;
         self.userInteractionEnabled = YES;
 
-        self.blur = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+        self.blur = [[UIVisualEffectView alloc] initWithEffect:
+                     [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
         self.blur.translatesAutoresizingMaskIntoConstraints = NO;
         self.blur.clipsToBounds = YES;
         self.blur.layer.cornerRadius = 16;
@@ -102,7 +107,6 @@ static CGFloat ABBarHeight(void) {
             [self.stack.bottomAnchor constraintEqualToAnchor:self.blur.contentView.bottomAnchor constant:-8],
         ]];
 
-        // protect touches from going to underlying app
         self.rootViewController = [UIViewController new];
         self.rootViewController.view.backgroundColor = UIColor.clearColor;
         self.accessibilityViewIsModal = NO;
@@ -112,7 +116,9 @@ static CGFloat ABBarHeight(void) {
 
 - (UIImage *)_symbol:(NSString *)name {
     if (@available(iOS 13.0, *)) {
-        UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:22 weight:UIImageSymbolWeightRegular];
+        UIImageSymbolConfiguration *cfg =
+          [UIImageSymbolConfiguration configurationWithPointSize:22
+                                                          weight:UIImageSymbolWeightRegular];
         return [UIImage systemImageNamed:name withConfiguration:cfg] ?: [UIImage new];
     }
     return [UIImage new];
@@ -129,33 +135,32 @@ static void ABPostDarwin(const char *name) {
 }
 
 - (void)didTapBack {
-    // Notify app processes to perform accessibility back
     ABPostDarwin("com.space.mekabrine.androidbar.back");
-    // Haptic feedback (if available)
     if (@available(iOS 13.0, *)) {
-        UIImpactFeedbackGenerator *gen = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
+        UIImpactFeedbackGenerator *gen =
+          [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
         [gen impactOccurred];
     }
 }
 
-extern void SBSimulateHomeButtonPress();
 - (void)didTapHome {
-    // Simulate single home press via SpringBoard private method
     UIApplication *app = [UIApplication sharedApplication];
-    if ([app respondsToSelector:NSSelectorFromString(@"_simulateHomeButtonPress")]) {
-        ((void(*)(id, SEL))objc_msgSend)(app, NSSelectorFromString(@"_simulateHomeButtonPress"));
+    SEL s = NSSelectorFromString(@"_simulateHomeButtonPress");
+    if ([app respondsToSelector:s]) {
+        ((void(*)(id, SEL))objc_msgSend)(app, s);
     } else {
-        // fallback double-press then switcher dismiss -> to go Home
-        if ([app respondsToSelector:NSSelectorFromString(@"_simulateHomeButtonDoublePress")]) {
-            ((void(*)(id, SEL))objc_msgSend)(app, NSSelectorFromString(@"_simulateHomeButtonDoublePress"));
+        SEL s2 = NSSelectorFromString(@"_simulateHomeButtonDoublePress");
+        if ([app respondsToSelector:s2]) {
+            ((void(*)(id, SEL))objc_msgSend)(app, s2);
         }
     }
 }
 
 - (void)didTapSwitch {
     UIApplication *app = [UIApplication sharedApplication];
-    if ([app respondsToSelector:NSSelectorFromString(@"_simulateHomeButtonDoublePress")]) {
-        ((void(*)(id, SEL))objc_msgSend)(app, NSSelectorFromString(@"_simulateHomeButtonDoublePress"));
+    SEL s = NSSelectorFromString(@"_simulateHomeButtonDoublePress");
+    if ([app respondsToSelector:s]) {
+        ((void(*)(id, SEL))objc_msgSend)(app, s);
     }
 }
 
