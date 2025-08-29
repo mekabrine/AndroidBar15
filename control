@@ -1,6 +1,6 @@
 Package: space.mekabrine.androidbar15
 Name: AndroidBar15
-Version: 1.1.1
+Version: 1.1.2
 Architecture: iphoneos-arm
 Description: Android-style nav bar (UI hosted in SpringBoard). Buttons: Back, Home, Recents. Prefs: Enable + Height. Rootless iOS 15 (Dopamine/ElleKit).
 Maintainer: Mekabrine

@@ -90,38 +90,51 @@ static void AB_SB_PerformBack(void) {
     }
 }
 
-// ---------- Darwin notify bridge
+// ---------- Darwin notify bridge (fixed with C callbacks)
+
+static void ABHomeCallback(CFNotificationCenterRef center, void *observer,
+                           CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+    if (!ABGloballyEnabled()) return;
+    if (ABHomeEnabled()) AB_SB_PerformHome();
+}
+
+static void ABSwitcherCallback(CFNotificationCenterRef center, void *observer,
+                               CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+    if (!ABGloballyEnabled()) return;
+    if (ABSwitchEnabled()) AB_SB_PerformSwitcher();
+}
+
+static void ABBackCallback(CFNotificationCenterRef center, void *observer,
+                           CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+    if (!ABGloballyEnabled()) return;
+    if (ABBackEnabled()) AB_SB_PerformBack();
+}
 
 static void ABPost(const char *name) {
-    uint32_t t;
-    notify_post(name); (void)t;
+    notify_post(name);
 }
 
 static void ABRegisterSpringBoardObservers(void) {
     CFNotificationCenterRef nc = CFNotificationCenterGetDarwinNotifyCenter();
     if (!nc) return;
 
-    CFNotificationCenterAddObserver(nc, NULL, ^(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-        if (!ABGloballyEnabled()) return;
+    CFNotificationCenterAddObserver(
+        nc, NULL, ABHomeCallback,
+        CFSTR("space.mekabrine.androidbar15.home"), NULL,
+        CFNotificationSuspensionBehaviorDeliverImmediately
+    );
 
-        if (CFStringCompare(name, CFSTR("space.mekabrine.androidbar15.home"), 0) == kCFCompareEqualTo) {
-            if (ABHomeEnabled()) AB_SB_PerformHome();
-        } else if (CFStringCompare(name, CFSTR("space.mekabrine.androidbar15.switcher"), 0) == kCFCompareEqualTo) {
-            if (ABSwitchEnabled()) AB_SB_PerformSwitcher();
-        } else if (CFStringCompare(name, CFSTR("space.mekabrine.androidbar15.back"), 0) == kCFCompareEqualTo) {
-            if (ABBackEnabled()) AB_SB_PerformBack();
-        }
-    }, CFSTR("space.mekabrine.androidbar15.home"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+    CFNotificationCenterAddObserver(
+        nc, NULL, ABSwitcherCallback,
+        CFSTR("space.mekabrine.androidbar15.switcher"), NULL,
+        CFNotificationSuspensionBehaviorDeliverImmediately
+    );
 
-    CFNotificationCenterAddObserver(nc, NULL, ^(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-        if (!ABGloballyEnabled()) return;
-        if (ABSwitchEnabled()) AB_SB_PerformSwitcher();
-    }, CFSTR("space.mekabrine.androidbar15.switcher"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-
-    CFNotificationCenterAddObserver(nc, NULL, ^(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-        if (!ABGloballyEnabled()) return;
-        if (ABBackEnabled()) AB_SB_PerformBack();
-    }, CFSTR("space.mekabrine.androidbar15.back"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+    CFNotificationCenterAddObserver(
+        nc, NULL, ABBackCallback,
+        CFSTR("space.mekabrine.androidbar15.back"), NULL,
+        CFNotificationSuspensionBehaviorDeliverImmediately
+    );
 }
 
 // ---------- UI hooks
@@ -133,7 +146,6 @@ static void ABRegisterSpringBoardObservers(void) {
     if (ABIsSpringBoard()) {
         if (ABBackEnabled()) AB_SB_PerformBack();
     } else {
-        // From apps → tell SpringBoard (guarded by prefs there)
         ABPost(kABBackNote);
     }
     %orig;
@@ -144,7 +156,6 @@ static void ABRegisterSpringBoardObservers(void) {
     if (ABIsSpringBoard()) {
         AB_SB_PerformHome();
     } else {
-        // Local fallback still takes you Home instantly; also ping SB.
         if ([[UIApplication sharedApplication] respondsToSelector:@selector(suspend)]) {
             [[UIApplication sharedApplication] suspend];
         }
