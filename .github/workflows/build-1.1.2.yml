@@ -1,0 +1,31 @@
+name: Build AndroidBar15 (subdir)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Fix maintainer script perms
+        run: |
+          chmod 0755 v1.1.2/layout/DEBIAN/postinst || true
+
+      - name: Set up Theos
+        uses: Randomblock1/theos-action@v1
+
+      - name: Build package
+        run: |
+          make -C v1.1.2 package
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: v1.1.2/packages/*.deb
