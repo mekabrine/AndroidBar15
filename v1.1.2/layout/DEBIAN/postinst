@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure|triggered)
+        # Refresh Settings bundle icons/entries (rootless-safe)
+        /usr/bin/uicache -p /var/jb/Library/PreferenceBundles/AndroidBar15Prefs.bundle 2>/dev/null || true
+        /usr/bin/uicache 2>/dev/null || true
+
+        # Tell Sileo/Zebra that a respring is recommended (shows the button)
+        echo "finish:restart"
+        ;;
+esac
+
+exit 0
