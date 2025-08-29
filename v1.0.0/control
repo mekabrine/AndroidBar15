@@ -1,0 +1,9 @@
+Package: space.mekabrine.androidbar15
+Name: AndroidBar15
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Android-style navigation bar (UI only). Rootless iOS 15.
+Maintainer: Mekabrine
+Author: Mekabrine
+Section: Tweaks
+Depends: firmware (>= 15.0), ellekit (>= 1.0), preferenceloader
