@@ -1,9 +1,0 @@
-Package: com.ginsu.androbar
-Name: AndroBar (Rootless)
-Version: 3.2.1-1
-Architecture: iphoneos-arm64
-Maintainer: You <you@example.com>
-Depends: firmware (>= 15.0), preferenceloader, applist
-Description: Android-style navigation bar tweak rebuilt for Dopamine (rootless). iOS 15+ (arm64).
-Section: Tweaks
-Priority: optional
