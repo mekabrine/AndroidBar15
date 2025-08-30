@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>AndroidBar15 (Swift)</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>key</key>
+			<string>isEnabled</string>
+			<key>label</key>
+			<string>Enabled</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>default</key>
+			<integer>40</integer>
+			<key>key</key>
+			<string>barHeight</string>
+			<key>label</key>
+			<string>Bar Height</string>
+			<key>max</key>
+			<integer>80</integer>
+			<key>min</key>
+			<integer>24</integer>
+			<key>showValue</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueSpecifier</string>
+			<key>default</key>
+			<string>Pixel</string>
+			<key>key</key>
+			<string>themeName</string>
+			<key>label</key>
+			<string>Theme (type in via Filza)</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>AndroidBar15</string>
+</dict>
+</plist>
