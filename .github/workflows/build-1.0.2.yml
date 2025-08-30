@@ -21,6 +21,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dos2unix
           dos2unix v1.0.0/control
+          make -C v1.0.0 clean
+          make -C v1.0.0 package
+
 
       - name: Set up Theos
         uses: Randomblock1/theos-action@v1
