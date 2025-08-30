@@ -1,4 +1,4 @@
-name: Build AndroBar (rootless)
+name: Build AndroBar rl15
 
 on:
   workflow_dispatch:
