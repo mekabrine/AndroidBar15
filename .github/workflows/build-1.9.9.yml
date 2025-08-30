@@ -1,0 +1,31 @@
+name: Build AndroBar (rootless)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Install Theos
+      - name: Set up Theos
+        uses: Randomblock1/theos-action@v1
+
+      # Build package from v1.9.9/
+      - name: Build package
+        run: |
+          make -C v1.9.9 package
+
+      # Upload .deb to workflow artifacts
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: v1.9.9/packages/*.deb
