@@ -1,0 +1,10 @@
+Package: space.mekabrine.androidbar15.swift
+Name: AndroidBar15 (Swift)
+Version: 0.1.1
+Architecture: iphoneos-arm64
+Description: Android-style nav bar for rootless iOS 15 (Swift). Buttons only vibrate; prompts to respring once after install.
+Maintainer: You
+Author: You
+Section: Tweaks
+Depends: firmware (>= 15.0), ellekit (>= 1.0)
+Priority: optional
