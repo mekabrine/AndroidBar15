@@ -1,31 +1,44 @@
-name: Build AndroBar rl15
+name: Build 1.9.9
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: macos-13
+    defaults:
+      run:
+        working-directory: v1.9.9   # your project is in this subfolder
+
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      # Install Theos
-      - name: Set up Theos
-        uses: Randomblock1/theos-action@v1
-
-      # Build package from v1.9.9/
-      - name: Build package
+      - name: Install build deps
         run: |
-          make -C v1.9.9 package
+          brew update
+          brew install ldid dpkg fakeroot gnu-tar md5sha1sum
 
-      # Upload .deb to workflow artifacts
-      - name: Upload .deb
+      - name: Set up Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos $HOME/theos
+          git clone https://github.com/theos/sdks $HOME/theos/sdks
+
+      - name: Fetch Orion (Swift hooking)
+        run: |
+          mkdir -p vendor
+          [ -d vendor/Orion ] || git clone https://github.com/theos/orion vendor/Orion
+
+      - name: Build package
+        env:
+          THEOS: ${{ runner.home }}/theos
+        run: |
+          make clean
+          make package FINALPACKAGE=1 V=1
+
+      - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: debs
+          name: AndroidBar15-rootless-debs
           path: v1.9.9/packages/*.deb
