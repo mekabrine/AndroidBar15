@@ -1,0 +1,35 @@
+name: Build AndroidBar15 1.0.2 (haptics-only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Fix perms + normalize newlines
+        run: |
+          chmod 0755 v1.0.0/layout/DEBIAN/postinst || true
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
+          dos2unix v1.0.0/control
+
+      - name: Set up Theos
+        uses: Randomblock1/theos-action@v1
+
+      - name: Build package
+        run: make -C v1.0.0 package
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: v1.0.0/packages/*.deb
