@@ -9,7 +9,7 @@ jobs:
     runs-on: macos-13
     defaults:
       run:
-        working-directory: v1.9.9   # your project is in this subfolder
+        working-directory: v1.9.9
 
     steps:
       - name: Checkout
@@ -20,15 +20,35 @@ jobs:
           brew update
           brew install ldid dpkg fakeroot gnu-tar md5sha1sum
 
-      - name: Set up Theos
+      - name: Set up Theos (idempotent)
+        env:
+          THEOS: ${{ runner.home }}/theos
         run: |
-          git clone --recursive https://github.com/theos/theos $HOME/theos
-          git clone https://github.com/theos/sdks $HOME/theos/sdks
+          set -e
+          if [ ! -d "$THEOS/.git" ]; then
+            git clone --recursive https://github.com/theos/theos "$THEOS"
+          else
+            git -C "$THEOS" fetch --all || true
+            git -C "$THEOS" reset --hard origin/master || true
+            git -C "$THEOS" submodule update --init --recursive
+          fi
+
+          # SDKs: clone only if missing/empty
+          if [ ! -d "$THEOS/sdks" ] || [ -z "$(ls -A "$THEOS/sdks" 2>/dev/null)" ]; then
+            rm -rf "$THEOS/sdks"
+            git clone https://github.com/theos/sdks "$THEOS/sdks"
+          else
+            echo "Theos SDKs already present."
+          fi
 
       - name: Fetch Orion (Swift hooking)
         run: |
           mkdir -p vendor
-          [ -d vendor/Orion ] || git clone https://github.com/theos/orion vendor/Orion
+          if [ ! -d vendor/Orion/.git ]; then
+            git clone https://github.com/theos/orion vendor/Orion
+          else
+            git -C vendor/Orion pull --ff-only || true
+          fi
 
       - name: Build package
         env:
